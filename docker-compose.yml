@@ -15,23 +15,15 @@ services:
       - ./docs/db-init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - budget-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U budget_user -d family_budget"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   pgadmin:
     image: dpage/pgadmin4
     container_name: budget-pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@budget.local
+      PGADMIN_DEFAULT_EMAIL: admin@budget.com
       PGADMIN_DEFAULT_PASSWORD: admin_password_123
     ports:
       - "8080:80"
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - budget-network
 
