@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: budget-db
+    environment:
+      POSTGRES_USER: budget_user
+      POSTGRES_PASSWORD: your_secure_password_123
+      POSTGRES_DB: family_budget
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docs/db-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - budget-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U budget_user -d family_budget"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: budget-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@budget.local
+      PGADMIN_DEFAULT_PASSWORD: admin_password_123
+    ports:
+      - "8080:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - budget-network
+
+volumes:
+  postgres_data:
+
+networks:
+  budget-network:
+    driver: bridge
