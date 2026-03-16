@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const { pool, testConnection } = require('./config/database');
+const transactionRoutes = require('./routes/transactions');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +15,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Подключаем маршруты транзакций
+app.use('/api/transactions', transactionRoutes);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {

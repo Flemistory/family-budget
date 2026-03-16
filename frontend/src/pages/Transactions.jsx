@@ -1,21 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
-import { formatMoney, formatDate } from '../utils/format';
-
-const mockTransactions = [
-  { id: 1, type: 'expense', category: 'Продукты', amount: 5200, date: '2024-05-12', comment: 'Пятёрочка' },
-  { id: 2, type: 'income', category: 'Зарплата', amount: 50000, date: '2024-05-10', comment: 'Аванс' },
-  { id: 3, type: 'expense', category: 'Транспорт', amount: 1500, date: '2024-05-09', comment: 'Бензин' },
-  { id: 4, type: 'expense', category: 'Коммуналка', amount: 8500, date: '2024-05-05', comment: 'Квартплата' },
-];
+import { formatMoney } from '../utils/format';
+import { transactionAPI } from '../services/api';
 
 export default function Transactions() {
+  const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
 
-  const filtered = mockTransactions.filter(t => filter === 'all' || t.type === filter);
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      const response = await transactionAPI.getAll();
+      setTransactions(response.data.data);
+    } catch (err) {
+      console.error('Failed to load transactions:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Всегда загружаем при открытии страницы
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  const filtered = transactions.filter(t => {
+    if (filter === 'all') return true;
+    return t.type === filter;
+  });
+
+  if (loading && transactions.length === 0) {
+    return (
+      <div className="p-4 max-w-md mx-auto text-center">
+        <div className="text-gray-500">Загрузка...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 max-w-md mx-auto pb-24">
@@ -44,20 +68,35 @@ export default function Transactions() {
       </div>
 
       {/* Список */}
-      <div className="space-y-3">
-        {filtered.map(t => (
-          <Card key={t.id} className="flex justify-between items-center">
-            <div>
-              <p className="font-medium">{t.category}</p>
-              <p className="text-sm text-gray-500">{formatDate(t.date)}</p>
-              {t.comment && <p className="text-xs text-gray-400">{t.comment}</p>}
-            </div>
-            <p className={`font-bold ${t.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
-              {t.type === 'income' ? '+' : '-'}{formatMoney(t.amount)}
-            </p>
-          </Card>
-        ))}
-      </div>
+      {filtered.length === 0 ? (
+        <Card className="text-center py-8">
+          <p className="text-gray-500">Нет транзакций</p>
+          <Link to="/transactions/new" className="mt-4 inline-block">
+            <Button variant="primary">Добавить первую</Button>
+          </Link>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(t => (
+            <Card key={t.id} className="flex justify-between items-center">
+              <div>
+                <p className="font-medium">{t.category_name || 'Без категории'}</p>
+                <p className="text-sm text-gray-500">
+                  {new Date(t.date).toLocaleDateString('ru-RU', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </p>
+                {t.comment && <p className="text-xs text-gray-400">{t.comment}</p>}
+              </div>
+              <p className={`font-bold ${t.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
+                {t.type === 'income' ? '+' : '-'}{formatMoney(t.amount)}
+              </p>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

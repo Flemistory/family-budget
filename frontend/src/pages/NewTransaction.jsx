@@ -1,19 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, X } from 'lucide-react';
+import { Camera } from 'lucide-react';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { formatMoney } from '../utils/format';
+import { transactionAPI } from '../services/api';
 
 const categories = [
-  { id: 1, name: 'Продукты', icon: '🛒', color: 'bg-green-100' },
-  { id: 2, name: 'Транспорт', icon: '🚌', color: 'bg-blue-100' },
-  { id: 3, name: 'Коммуналка', icon: '💧', color: 'bg-orange-100' },
-  { id: 4, name: 'Развлечения', icon: '🎬', color: 'bg-purple-100' },
-  { id: 5, name: 'Здоровье', icon: '➕', color: 'bg-red-100' },
-  { id: 6, name: 'Одежда', icon: '👕', color: 'bg-pink-100' },
-  { id: 7, name: 'Кафе', icon: '☕', color: 'bg-yellow-100' },
-  { id: 8, name: 'Другое', icon: '⋯', color: 'bg-gray-100' },
+  { id: '00000000-0000-0000-0000-000000000001', name: 'Продукты', icon: '🛒', color: 'bg-green-100' },
+  { id: '00000000-0000-0000-0000-000000000002', name: 'Транспорт', icon: '🚌', color: 'bg-blue-100' },
+  { id: '00000000-0000-0000-0000-000000000003', name: 'Коммуналка', icon: '💧', color: 'bg-orange-100' },
+  { id: '00000000-0000-0000-0000-000000000004', name: 'Развлечения', icon: '🎬', color: 'bg-purple-100' },
+  { id: '00000000-0000-0000-0000-000000000005', name: 'Здоровье', icon: '➕', color: 'bg-red-100' },
+  { id: '00000000-0000-0000-0000-000000000006', name: 'Одежда', icon: '👕', color: 'bg-pink-100' },
 ];
 
 export default function NewTransaction() {
@@ -23,6 +22,7 @@ export default function NewTransaction() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [comment, setComment] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(false);
 
   const handleNumberClick = (num) => {
     if (amount.length < 10) {
@@ -38,25 +38,34 @@ export default function NewTransaction() {
     setAmount('');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!amount || !selectedCategory) {
       alert('Введите сумму и выберите категорию!');
       return;
     }
 
-    // Здесь будет отправка на API
-    const transaction = {
-      type,
-      amount: parseFloat(amount),
-      category: selectedCategory.name,
-      comment,
-      date,
-    };
+    try {
+      setLoading(true);
+      
+      const transaction = {
+        category_id: selectedCategory.id,
+        amount: parseFloat(amount),
+        type,
+        date,
+        comment,
+      };
 
-    console.log('Сохранение транзакции:', transaction);
-    alert(`✅ Сохранено!\n${type === 'expense' ? 'Расход' : 'Доход'}: ${formatMoney(amount)}\nКатегория: ${selectedCategory.name}`);
-    
-    navigate('/transactions');
+      await transactionAPI.create(transaction);
+      
+      // Перенаправление с полной перезагрузкой страницы
+      window.location.href = '/transactions';
+      
+    } catch (err) {
+      console.error('Error creating transaction:', err);
+      alert('❌ Ошибка при сохранении: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -110,7 +119,7 @@ export default function NewTransaction() {
       {/* Категории */}
       <Card className="mb-6">
         <h2 className="font-semibold mb-3">Категория</h2>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {categories.map(cat => (
             <button
               key={cat.id}
@@ -194,8 +203,9 @@ export default function NewTransaction() {
         variant={type === 'expense' ? 'danger' : 'primary'}
         className="w-full py-4 text-lg font-semibold"
         onClick={handleSave}
+        disabled={loading}
       >
-        {type === 'expense' ? '💸 Добавить расход' : '💰 Добавить доход'}
+        {loading ? 'Сохранение...' : type === 'expense' ? '💸 Добавить расход' : '💰 Добавить доход'}
       </Button>
     </div>
   );
