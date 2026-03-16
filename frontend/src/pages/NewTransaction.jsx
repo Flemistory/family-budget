@@ -6,13 +6,27 @@ import Card from '../components/Card';
 import { formatMoney } from '../utils/format';
 import { transactionAPI } from '../services/api';
 
-const categories = [
+// Категории для РАСХОДОВ
+const expenseCategories = [
   { id: '00000000-0000-0000-0000-000000000001', name: 'Продукты', icon: '🛒', color: 'bg-green-100' },
   { id: '00000000-0000-0000-0000-000000000002', name: 'Транспорт', icon: '🚌', color: 'bg-blue-100' },
   { id: '00000000-0000-0000-0000-000000000003', name: 'Коммуналка', icon: '💧', color: 'bg-orange-100' },
   { id: '00000000-0000-0000-0000-000000000004', name: 'Развлечения', icon: '🎬', color: 'bg-purple-100' },
-  { id: '00000000-0000-0000-0000-000000000005', name: 'Здоровье', icon: '➕', color: 'bg-red-100' },
+  { id: '00000000-0000-0000-0000-000000000005', name: 'Здоровье', icon: '💊', color: 'bg-red-100' },
   { id: '00000000-0000-0000-0000-000000000006', name: 'Одежда', icon: '👕', color: 'bg-pink-100' },
+  { id: '00000000-0000-0000-0000-000000000007', name: 'Кафе', icon: '☕', color: 'bg-yellow-100' },
+  { id: '00000000-0000-0000-0000-000000000008', name: 'Другое', icon: '⋯', color: 'bg-gray-100' },
+];
+
+// Категории для ДОХОДОВ
+const incomeCategories = [
+  { id: '00000000-0000-0000-0000-000000000005', name: 'Зарплата', icon: '💼', color: 'bg-green-100' },
+  { id: '00000000-0000-0000-0000-000000000006', name: 'Фриланс', icon: '💻', color: 'bg-blue-100' },
+  { id: '00000000-0000-0000-0000-000000000007', name: 'Перевод', icon: '💳', color: 'bg-purple-100' },
+  { id: '00000000-0000-0000-0000-000000000008', name: 'Подарок', icon: '🎁', color: 'bg-pink-100' },
+  { id: '00000000-0000-0000-0000-000000000009', name: 'Кэшбэк', icon: '💰', color: 'bg-yellow-100' },
+  { id: '00000000-0000-0000-0000-000000000010', name: 'Инвестиции', icon: '📈', color: 'bg-indigo-100' },
+  { id: '00000000-0000-0000-0000-000000000011', name: 'Другое', icon: '⋯', color: 'bg-gray-100' },
 ];
 
 export default function NewTransaction() {
@@ -23,6 +37,9 @@ export default function NewTransaction() {
   const [comment, setComment] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
+
+  // Выбираем категории в зависимости от типа транзакции
+  const categories = type === 'expense' ? expenseCategories : incomeCategories;
 
   const handleNumberClick = (num) => {
     if (amount.length < 10) {
@@ -36,6 +53,7 @@ export default function NewTransaction() {
 
   const handleClear = () => {
     setAmount('');
+    setSelectedCategory(null);
   };
 
   const handleSave = async () => {
@@ -82,7 +100,10 @@ export default function NewTransaction() {
       {/* Тип транзакции */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <button
-          onClick={() => setType('expense')}
+          onClick={() => {
+            setType('expense');
+            setSelectedCategory(null); // Сбрасываем категорию при смене типа
+          }}
           className={`py-4 rounded-xl font-semibold text-lg transition-all ${
             type === 'expense'
               ? 'bg-danger text-white shadow-lg scale-105'
@@ -92,7 +113,10 @@ export default function NewTransaction() {
           Расход
         </button>
         <button
-          onClick={() => setType('income')}
+          onClick={() => {
+            setType('income');
+            setSelectedCategory(null); // Сбрасываем категорию при смене типа
+          }}
           className={`py-4 rounded-xl font-semibold text-lg transition-all ${
             type === 'income'
               ? 'bg-primary text-white shadow-lg scale-105'
@@ -106,7 +130,9 @@ export default function NewTransaction() {
       {/* Сумма */}
       <Card className="mb-6 text-center">
         <p className="text-sm text-gray-500 mb-2">Сумма</p>
-        <div className="text-5xl font-bold text-gray-800 mb-2 min-h-[60px]">
+        <div className={`text-5xl font-bold mb-2 min-h-[60px] ${
+          type === 'income' ? 'text-green-600' : 'text-red-600'
+        }`}>
           {amount ? formatMoney(amount) : <span className="text-gray-300">0 ₽</span>}
         </div>
         {amount && (
@@ -118,7 +144,9 @@ export default function NewTransaction() {
 
       {/* Категории */}
       <Card className="mb-6">
-        <h2 className="font-semibold mb-3">Категория</h2>
+        <h2 className="font-semibold mb-3">
+          {type === 'expense' ? 'Категория расхода' : 'Категория дохода'}
+        </h2>
         <div className="grid grid-cols-3 gap-2">
           {categories.map(cat => (
             <button
@@ -156,7 +184,7 @@ export default function NewTransaction() {
             type="text"
             value={comment}
             onChange={e => setComment(e.target.value)}
-            placeholder="Например: Пятёрочка"
+            placeholder={type === 'expense' ? 'Например: Пятёрочка' : 'Например: Аванс'}
             className="w-full p-3 border border-gray-200 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none pr-12"
           />
           <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-gray-100 rounded-full hover:bg-gray-200">
