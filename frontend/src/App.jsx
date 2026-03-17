@@ -3,6 +3,7 @@ import BottomNav from './components/BottomNav';
 import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import NewTransaction from './pages/NewTransaction';
+import EditTransaction from './pages/EditTransaction';
 import Goals from './pages/Goals';
 import Analytics from './pages/Analytics';
 
@@ -14,6 +15,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/transactions/new" element={<NewTransaction />} />
+	  <Route path="/transactions/:id/edit" element={<EditTransaction />} />
           <Route path="/goals" element={<Goals />} />
           <Route path="/analytics" element={<Analytics />} />
         </Routes>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Edit2 } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { formatMoney } from '../utils/format';
@@ -64,6 +64,7 @@ export default function Transactions() {
 
   return (
     <div className="p-4 max-w-md mx-auto pb-24">
+      {/* Заголовок */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Транзакции</h1>
         <Link to="/transactions/new">
@@ -111,10 +112,21 @@ export default function Transactions() {
                 </p>
                 {t.comment && <p className="text-xs text-gray-400">{t.comment}</p>}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <p className={`font-bold ${t.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
                   {t.type === 'income' ? '+' : '-'}{formatMoney(t.amount)}
                 </p>
+                
+                {/* Кнопка редактирования */}
+                <Link
+                  to={`/transactions/${t.id}/edit`}
+                  className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Редактировать транзакцию"
+                >
+                  <Edit2 className="w-5 h-5" />
+                </Link>
+                
+                {/* Кнопка удаления */}
                 <button
                   onClick={() => handleDelete(t.id)}
                   disabled={deletingId === t.id}

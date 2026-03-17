@@ -2,11 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 
-// Заглушка family_id для MVP (в реальности — из токена авторизации)
 const FAMILY_ID = '00000000-0000-0000-0000-000000000000';
 const USER_ID = '00000000-0000-0000-0000-000000000000';
 
-// GET все транзакции
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -18,7 +16,6 @@ router.get('/', async (req, res) => {
       ORDER BY t.date DESC, t.created_at DESC
     `, [FAMILY_ID]);
     
-    // ✅ ИСПРАВЛЕНО: добавлен ключ "data"
     res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error('Error fetching transactions:', err);
@@ -26,7 +23,28 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET статистика
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT t.*, c.name as category_name, u.name as user_name
+       FROM transactions t
+       LEFT JOIN categories c ON t.category_id = c.id
+       LEFT JOIN users u ON t.user_id = u.id
+       WHERE t.id = $1 AND t.family_id = $2 AND t.is_deleted = false`,
+      [req.params.id, FAMILY_ID]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Транзакция не найдена' });
+    }
+    
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Error fetching transaction:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/stats/summary', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -55,7 +73,6 @@ router.get('/stats/summary', async (req, res) => {
   }
 });
 
-// POST создать транзакцию
 router.post('/', async (req, res) => {
   try {
     const { category_id, amount, type, date, comment, receipt_url } = req.body;
@@ -82,34 +99,41 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT обновить транзакцию
 router.put('/:id', async (req, res) => {
   try {
-    const { category_id, amount, date, comment } = req.body;
+    const { category_id, amount, date, comment, type } = req.body;
     
+    if (!category_id && !amount && !date && !comment && !type) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Укажите хотя бы одно поле для обновления' 
+      });
+    }
+
     const result = await pool.query(
       `UPDATE transactions 
        SET category_id = COALESCE($1, category_id),
            amount = COALESCE($2, amount),
            date = COALESCE($3, date),
            comment = COALESCE($4, comment),
+           type = COALESCE($5, type),
            updated_at = NOW()
-       WHERE id = $5 AND family_id = $6 AND is_deleted = false
+       WHERE id = $6 AND family_id = $7 AND is_deleted = false
        RETURNING *`,
-      [category_id, amount, date, comment, req.params.id, FAMILY_ID]
+      [category_id, amount, date, comment, type, req.params.id, FAMILY_ID]
     );
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Transaction not found' });
+      return res.status(404).json({ success: false, error: 'Транзакция не найдена' });
     }
     
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
+    console.error('Error updating transaction:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DELETE (мягкое удаление)
 router.delete('/:id', async (req, res) => {
   try {
     const result = await pool.query(
