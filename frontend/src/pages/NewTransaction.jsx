@@ -87,7 +87,7 @@ export default function NewTransaction() {
   };
 
   return (
-    <div className="p-4 max-w-md mx-auto pb-8">
+    <div className="p-4 max-w-md mx-auto pb-24">
       {/* Заголовок */}
       <div className="flex justify-between items-center mb-6">
         <Button variant="outline" onClick={() => navigate(-1)} className="px-3 py-1">
