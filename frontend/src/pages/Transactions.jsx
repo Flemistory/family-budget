@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { formatMoney } from '../utils/format';
@@ -10,6 +10,7 @@ export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
 
   const loadTransactions = async () => {
     try {
@@ -20,6 +21,26 @@ export default function Transactions() {
       console.error('Failed to load transactions:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    // Подтверждение перед удалением
+    if (!confirm('Вы уверены, что хотите удалить эту транзакцию?')) {
+      return;
+    }
+
+    try {
+      setDeletingId(id);
+      await transactionAPI.delete(id);
+      
+      // Обновляем список после удаления
+      await loadTransactions();
+    } catch (err) {
+      console.error('Error deleting transaction:', err);
+      alert('❌ Ошибка при удалении: ' + err.message);
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -79,7 +100,7 @@ export default function Transactions() {
         <div className="space-y-3">
           {filtered.map(t => (
             <Card key={t.id} className="flex justify-between items-center">
-              <div>
+              <div className="flex-1">
                 <p className="font-medium">{t.category_name || 'Без категории'}</p>
                 <p className="text-sm text-gray-500">
                   {new Date(t.date).toLocaleDateString('ru-RU', {
@@ -90,9 +111,19 @@ export default function Transactions() {
                 </p>
                 {t.comment && <p className="text-xs text-gray-400">{t.comment}</p>}
               </div>
-              <p className={`font-bold ${t.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
-                {t.type === 'income' ? '+' : '-'}{formatMoney(t.amount)}
-              </p>
+              <div className="flex items-center gap-3">
+                <p className={`font-bold ${t.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
+                  {t.type === 'income' ? '+' : '-'}{formatMoney(t.amount)}
+                </p>
+                <button
+                  onClick={() => handleDelete(t.id)}
+                  disabled={deletingId === t.id}
+                  className="p-2 text-gray-400 hover:text-danger hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  title="Удалить транзакцию"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
             </Card>
           ))}
         </div>

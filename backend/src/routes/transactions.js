@@ -112,15 +112,21 @@ router.put('/:id', async (req, res) => {
 // DELETE (мягкое удаление)
 router.delete('/:id', async (req, res) => {
   try {
-    await pool.query(
+    const result = await pool.query(
       `UPDATE transactions 
        SET is_deleted = true, updated_at = NOW()
-       WHERE id = $1 AND family_id = $2 AND is_deleted = false`,
+       WHERE id = $1 AND family_id = $2 AND is_deleted = false
+       RETURNING *`,
       [req.params.id, FAMILY_ID]
     );
     
-    res.json({ success: true, message: 'Transaction deleted' });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Транзакция не найдена' });
+    }
+    
+    res.json({ success: true, message: 'Транзакция удалена' });
   } catch (err) {
+    console.error('Error deleting transaction:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
