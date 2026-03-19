@@ -4,20 +4,18 @@ require('dotenv').config();
 
 const { pool, testConnection } = require('./config/database');
 const transactionRoutes = require('./routes/transactions');
+const goalRoutes = require('./routes/goals'); // ← ПРОВЕРЬ ЭТУ СТРОКУ
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true
-}));
+app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Подключаем маршруты транзакций
+// Подключаем маршруты
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/goals', goalRoutes); 
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {

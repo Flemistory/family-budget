@@ -17,4 +17,14 @@ export const transactionAPI = {
   getStats: () => api.get('/transactions/stats/summary'),
 };
 
+// 🔥 НОВОЕ: API для целей 🔥
+export const goalAPI = {
+  getAll: () => api.get('/goals'),
+  getById: (id) => api.get(`/goals/${id}`),
+  create: (data) => api.post('/goals', data),
+  update: (id, data) => api.put(`/goals/${id}`, data),
+  contribute: (id, amount) => api.patch(`/goals/${id}/contribute`, { amount }),
+  delete: (id) => api.delete(`/goals/${id}`),
+};
+
 export default api;
