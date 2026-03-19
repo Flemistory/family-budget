@@ -5,12 +5,12 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import ProgressBar from '../components/ProgressBar';
 import { formatMoney } from '../utils/format';
-import { transactionAPI } from '../services/api';
+import { transactionAPI, goalAPI } from '../services/api';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
+  const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadDashboard();
@@ -19,28 +19,30 @@ export default function Dashboard() {
   const loadDashboard = async () => {
     try {
       setLoading(true);
-      setError(null);
       
       // Загружаем транзакции и статистику
-      const [transactionsRes, statsRes] = await Promise.all([
+      const [transactionsRes, statsRes, goalsRes] = await Promise.all([
         transactionAPI.getAll(),
         transactionAPI.getStats(),
+        goalAPI.getAll(),
       ]);
 
       const transactions = transactionsRes.data.data;
       const stats = statsRes.data.data;
+      const goalsData = goalsRes.data.data;
 
       setData({
         balance: stats.balance,
         income: stats.totalIncome,
         expenses: stats.totalExpense,
         transactions: transactions.slice(0, 5), // Последние 5
-        goals: [], // Пока заглушка
-        upcomingPayments: [], // Пока заглушка
       });
+      
+      // Берём первые 2-3 цели
+      setGoals(goalsData.slice(0, 3));
+      
     } catch (err) {
       console.error('Failed to load dashboard:', err);
-      setError('Не удалось загрузить данные');
     } finally {
       setLoading(false);
     }
@@ -54,18 +56,16 @@ export default function Dashboard() {
     );
   }
 
-  if (error) {
+  if (!data) {
     return (
       <div className="p-4 max-w-md mx-auto text-center">
-        <div className="text-danger">{error}</div>
+        <div className="text-danger">Ошибка загрузки</div>
         <Button onClick={loadDashboard} className="mt-4">
           Повторить
         </Button>
       </div>
     );
   }
-
-  if (!data) return null;
 
   return (
     <div className="p-4 max-w-md mx-auto pb-20">
@@ -111,7 +111,13 @@ export default function Dashboard() {
                   <div className={`w-2 h-2 rounded-full ${t.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`} />
                   <div>
                     <p className="font-medium">{t.category_name || 'Без категории'}</p>
-                    <p className="text-xs text-gray-500">{t.date}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(t.date).toLocaleDateString('ru-RU', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </p>
                   </div>
                 </div>
                 <p className={`font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
@@ -123,7 +129,7 @@ export default function Dashboard() {
         )}
       </Card>
 
-      {/* Цели (пока заглушка) */}
+      {/* Цели */}
       <Card className="mb-6">
         <div className="flex justify-between items-center mb-3">
           <h2 className="font-semibold">Цели</h2>
@@ -133,9 +139,46 @@ export default function Dashboard() {
             </Button>
           </Link>
         </div>
-        <p className="text-gray-500 text-center py-4">
-          Скоро будет... 🎯
-        </p>
+        {goals.length === 0 ? (
+          <div className="text-center py-4">
+            <Target className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+            <p className="text-gray-500 text-sm">Нет целей</p>
+            <Link to="/goals">
+              <Button variant="primary" className="mt-3 text-sm py-2">
+                + Создать цель
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {goals.map(goal => {
+              const progress = Math.min(Math.round((goal.current_amount / goal.target_amount) * 100), 100);
+              
+              return (
+                <div key={goal.id}>
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{goal.icon || '🎯'}</span>
+                      <span className="font-medium text-sm">{goal.name}</span>
+                    </div>
+                    <span className="text-sm font-bold" style={{ color: goal.color || '#4CAF50' }}>
+                      {progress}%
+                    </span>
+                  </div>
+                  <ProgressBar 
+                    value={progress} 
+                    color={goal.color || '#4CAF50'}
+                    className="mb-1"
+                    height="h-2"
+                  />
+                  <p className="text-xs text-gray-500">
+                    {formatMoney(goal.current_amount)} из {formatMoney(goal.target_amount)}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
       {/* Кнопка добавить транзакцию */}
