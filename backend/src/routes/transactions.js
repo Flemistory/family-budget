@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 
@@ -15,7 +15,6 @@ router.get('/', async (req, res) => {
       WHERE t.family_id = $1 AND t.is_deleted = false
       ORDER BY t.date DESC, t.created_at DESC
     `, [FAMILY_ID]);
-    
     res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error('Error fetching transactions:', err);
@@ -33,11 +32,9 @@ router.get('/:id', async (req, res) => {
        WHERE t.id = $1 AND t.family_id = $2 AND t.is_deleted = false`,
       [req.params.id, FAMILY_ID]
     );
-    
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Транзакция не найдена' });
     }
-    
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Error fetching transaction:', err);
@@ -47,28 +44,37 @@ router.get('/:id', async (req, res) => {
 
 router.get('/stats/summary', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT 
-        type,
-        SUM(amount) as total,
-        COUNT(*) as count
+    const transactions = await pool.query(`
+      SELECT type, SUM(amount) as total
       FROM transactions
       WHERE family_id = $1 AND is_deleted = false
       GROUP BY type
     `, [FAMILY_ID]);
     
-    const income = result.rows.find(r => r.type === 'income')?.total || 0;
-    const expense = result.rows.find(r => r.type === 'expense')?.total || 0;
+    const income = transactions.rows.find(r => r.type === 'income')?.total || 0;
+    const expense = transactions.rows.find(r => r.type === 'expense')?.total || 0;
+    
+    const goals = await pool.query(
+      'SELECT SUM(current_amount) as allocated FROM goals WHERE family_id = $1',
+      [FAMILY_ID]
+    );
+    const allocated = goals.rows[0]?.allocated || 0;
+    
+    const totalBalance = parseFloat(income) - parseFloat(expense);
+    const freeBalance = totalBalance - parseFloat(allocated);
     
     res.json({ 
       success: true, 
       data: {
         totalIncome: parseFloat(income),
         totalExpense: parseFloat(expense),
-        balance: parseFloat(income) - parseFloat(expense)
+        totalBalance: totalBalance,
+        allocatedToGoals: parseFloat(allocated),
+        freeBalance: freeBalance,
       }
     });
   } catch (err) {
+    console.error('Stats error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

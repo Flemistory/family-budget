@@ -20,7 +20,6 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
-      // Загружаем транзакции и статистику
       const [transactionsRes, statsRes, goalsRes] = await Promise.all([
         transactionAPI.getAll(),
         transactionAPI.getStats(),
@@ -32,13 +31,14 @@ export default function Dashboard() {
       const goalsData = goalsRes.data.data;
 
       setData({
-        balance: stats.balance,
+        balance: stats.freeBalance,
+        totalBalance: stats.totalBalance,
+        allocatedToGoals: stats.allocatedToGoals,
         income: stats.totalIncome,
         expenses: stats.totalExpense,
-        transactions: transactions.slice(0, 5), // Последние 5
+        transactions: transactions.slice(0, 5),
       });
       
-      // Берём первые 2-3 цели
       setGoals(goalsData.slice(0, 3));
       
     } catch (err) {
@@ -46,6 +46,14 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Определяем цвет баланса в зависимости от состояния
+  const getBalanceColor = () => {
+    if (!data) return 'text-gray-800';
+    if (data.freeBalance < 0) return 'text-danger';
+    if (data.freeBalance < data.totalBalance * 0.2 && data.totalBalance > 0) return 'text-orange-500';
+    return 'text-primary';
   };
 
   if (loading) {
@@ -69,12 +77,33 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 max-w-md mx-auto pb-20">
-      {/* Баланс */}
+      {/* Баланс с визуальным разделением */}
       <div className="text-center mb-6">
-        <h1 className={`text-4xl font-bold ${data.balance >= 0 ? 'text-primary' : 'text-danger'}`}>
-          {formatMoney(data.balance)}
+        {/* Свободный баланс (основной) */}
+        <h1 className={`text-4xl font-bold ${getBalanceColor()}`}>
+          {formatMoney(data.freeBalance)}
         </h1>
-        <p className="text-gray-500 mt-1">Общий баланс</p>
+        <p className="text-gray-500 mt-1">Свободные средства</p>
+        
+        {/* Детализация */}
+        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+          <div className="text-xs text-gray-500 space-y-1">
+            <div className="flex justify-between">
+              <span>Всего заработано:</span>
+              <span className="font-medium text-green-600">{formatMoney(data.totalBalance)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Отложено на цели:</span>
+              <span className="font-medium text-purple-600">-{formatMoney(data.allocatedToGoals)}</span>
+            </div>
+            <div className="border-t border-gray-300 pt-1 mt-1">
+              <div className="flex justify-between font-semibold">
+                <span>Доступно:</span>
+                <span className={getBalanceColor()}>{formatMoney(data.freeBalance)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Доходы / Расходы */}

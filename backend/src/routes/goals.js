@@ -4,7 +4,6 @@ const { pool } = require('../config/database');
 
 const FAMILY_ID = '00000000-0000-0000-0000-000000000000';
 
-// GET все цели
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
@@ -18,7 +17,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET одна цель
 router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query(
@@ -35,17 +33,16 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST создать цель
 router.post('/', async (req, res) => {
   try {
-    const { name, target_amount, current_amount, deadline, color, icon } = req.body;
+    const { name, target_amount, current_amount, deadline, color } = req.body;
     if (!name || !target_amount) {
       return res.status(400).json({ success: false, error: 'Required: name, target_amount' });
     }
     const result = await pool.query(
-      `INSERT INTO goals (family_id, name, target_amount, current_amount, deadline, color, icon)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [FAMILY_ID, name, Number(target_amount), Number(current_amount) || 0, deadline || null, color || '#4CAF50', icon || '🎯']
+      `INSERT INTO goals (family_id, name, target_amount, current_amount, deadline, color)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [FAMILY_ID, name, Number(target_amount), Number(current_amount) || 0, deadline || null, color || '#4CAF50']
     );
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -54,74 +51,64 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT обновить цель (БЕЗ updated_at)
 router.put('/:id', async (req, res) => {
   try {
-    const { name, target_amount, current_amount, deadline, color, icon } = req.body;
-    const result = await pool.query(
-      `UPDATE goals SET 
-       name = COALESCE($1, name),
-       target_amount = COALESCE($2::numeric, target_amount),
-       current_amount = COALESCE($3::numeric, current_amount),
-       deadline = COALESCE($4, deadline),
-       color = COALESCE($5, color),
-       icon = COALESCE($6, icon)
-       WHERE id = $7 AND family_id = $8 RETURNING *`,
-      [name, target_amount, current_amount, deadline, color, icon, req.params.id, FAMILY_ID]
+    const { name, target_amount, current_amount, deadline, color } = req.body;
+    const check = await pool.query(
+      'SELECT * FROM goals WHERE id = $1 AND family_id = $2',
+      [req.params.id, FAMILY_ID]
     );
-    if (result.rows.length === 0) {
+    if (check.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Цель не найдена' });
     }
+    const current = check.rows[0];
+    const newName = name !== undefined && name !== null ? name : current.name;
+    const newTarget = target_amount !== undefined && target_amount !== null ? Number(target_amount) : current.target_amount;
+    const newCurrent = current_amount !== undefined && current_amount !== null ? Number(current_amount) : current.current_amount;
+    const newDeadline = deadline !== undefined && deadline !== null ? deadline : current.deadline;
+    const newColor = color !== undefined && color !== null ? color : current.color;
+    const result = await pool.query(
+      `UPDATE goals SET name = $1, target_amount = $2, current_amount = $3, deadline = $4, color = $5
+       WHERE id = $6 AND family_id = $7 RETURNING *`,
+      [newName, newTarget, newCurrent, newDeadline, newColor, req.params.id, FAMILY_ID]
+    );
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
-    console.error('Goal PUT error:', err);
+    console.error('GOAL PUT ERROR:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 🔥 PATCH пополнить цель (БЕЗ updated_at) 🔥
 router.patch('/:id/contribute', async (req, res) => {
   try {
     const amount = req.body.amount;
-    
     if (!amount) {
       return res.status(400).json({ success: false, error: 'Amount required' });
     }
-    
     const numAmount = Number(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
       return res.status(400).json({ success: false, error: 'Invalid amount' });
     }
-
-    // Получаем текущую сумму
     const current = await pool.query(
       'SELECT current_amount FROM goals WHERE id = $1 AND family_id = $2',
       [req.params.id, FAMILY_ID]
     );
-    
     if (current.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Goal not found' });
     }
-    
-    // Считаем новую сумму
     const oldAmount = Number(current.rows[0].current_amount) || 0;
     const newAmount = oldAmount + numAmount;
-    
-    // Обновляем (БЕЗ updated_at)
     const result = await pool.query(
       'UPDATE goals SET current_amount = $1 WHERE id = $2 AND family_id = $3 RETURNING *',
       [newAmount, req.params.id, FAMILY_ID]
     );
-    
     res.json({ success: true, data: result.rows[0] });
-    
   } catch (err) {
-    console.error('🔥 CONTRIBUTE ERROR:', err);
+    console.error('CONTRIBUTE ERROR:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DELETE удалить цель
 router.delete('/:id', async (req, res) => {
   try {
     const result = await pool.query(
