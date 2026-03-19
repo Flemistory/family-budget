@@ -161,4 +161,66 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+router.get('/analytics/spending-by-category', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT c.name as category, SUM(t.amount) as total
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.family_id = $1 AND t.type = 'expense' AND t.is_deleted = false
+      GROUP BY c.id, c.name
+      ORDER BY total DESC
+    `, [FAMILY_ID]);
+    
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Analytics category error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/analytics/spending-by-month', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        TO_CHAR(date, 'YYYY-MM') as month,
+        SUM(amount) as total
+      FROM transactions
+      WHERE family_id = $1 AND type = 'expense' AND is_deleted = false
+      GROUP BY TO_CHAR(date, 'YYYY-MM')
+      ORDER BY month DESC
+      LIMIT 6
+    `, [FAMILY_ID]);
+    
+    const data = result.rows.reverse().map(row => ({
+      month: row.month,
+      total: parseFloat(row.total)
+    }));
+    
+    res.json({ success: true, data: data });
+  } catch (err) {
+    console.error('Analytics month error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/analytics/top-expenses', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT c.name as category, SUM(t.amount) as total, COUNT(*) as count
+      FROM transactions t
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE t.family_id = $1 AND t.type = 'expense' AND t.is_deleted = false
+      GROUP BY c.id, c.name
+      ORDER BY total DESC
+      LIMIT 5
+    `, [FAMILY_ID]);
+    
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Analytics top error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

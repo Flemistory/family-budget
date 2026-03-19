@@ -15,9 +15,14 @@ export const transactionAPI = {
   update: (id, data) => api.put(`/transactions/${id}`, data),
   delete: (id) => api.delete(`/transactions/${id}`),
   getStats: () => api.get('/transactions/stats/summary'),
+  
+  // Аналитика
+  getSpendingByCategory: () => api.get('/transactions/analytics/spending-by-category'),
+  getSpendingByMonth: () => api.get('/transactions/analytics/spending-by-month'),
+  getTopExpenses: () => api.get('/transactions/analytics/top-expenses'),
 };
 
-// 🔥 НОВОЕ: API для целей 🔥
+// API для целей
 export const goalAPI = {
   getAll: () => api.get('/goals'),
   getById: (id) => api.get(`/goals/${id}`),
