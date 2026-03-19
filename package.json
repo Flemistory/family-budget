@@ -1,0 +1,17 @@
+{
+  "name": "family-budget",
+  "version": "1.0.0",
+  "description": "Full-stack family budget application",
+  "scripts": {
+    "dev:all": "concurrently \"docker-compose up -d\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "keywords": ["budget", "finance", "react", "nodejs", "postgresql"],
+  "author": "Andrey",
+  "license": "ISC"
+}
