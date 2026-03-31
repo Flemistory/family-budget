@@ -1,16 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Wallet, TrendingUp, TrendingDown, Target } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { TrendingUp, TrendingDown, Target, LogOut } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import ProgressBar from '../components/ProgressBar';
 import { formatMoney } from '../utils/format';
 import { transactionAPI, goalAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   useEffect(() => {
     loadDashboard();
@@ -30,8 +38,9 @@ export default function Dashboard() {
       const stats = statsRes.data.data;
       const goalsData = goalsRes.data.data;
 
+      // 🔥 ИСПРАВЛЕНО: freeBalance вместо balance 🔥
       setData({
-        balance: stats.freeBalance,
+        freeBalance: stats.freeBalance,
         totalBalance: stats.totalBalance,
         allocatedToGoals: stats.allocatedToGoals,
         income: stats.totalIncome,
@@ -51,12 +60,13 @@ export default function Dashboard() {
   // Определяем цвет баланса в зависимости от состояния
   const getBalanceColor = () => {
     if (!data) return 'text-gray-800';
-    if (data.freeBalance < 0) return 'text-danger';
-    if (data.freeBalance < data.totalBalance * 0.2 && data.totalBalance > 0) return 'text-orange-500';
-    return 'text-primary';
+    if (data.freeBalance < 0) return 'text-red-600';
+    if (data.totalBalance > 0 && data.freeBalance < data.totalBalance * 0.2) return 'text-orange-500';
+    return 'text-green-600';
   };
 
-  if (loading) {
+  // Показываем загрузку, если данных ещё нет
+  if (loading || !data) {
     return (
       <div className="p-4 max-w-md mx-auto text-center">
         <div className="text-gray-500">Загрузка...</div>
@@ -64,19 +74,23 @@ export default function Dashboard() {
     );
   }
 
-  if (!data) {
-    return (
-      <div className="p-4 max-w-md mx-auto text-center">
-        <div className="text-danger">Ошибка загрузки</div>
-        <Button onClick={loadDashboard} className="mt-4">
-          Повторить
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 max-w-md mx-auto pb-20">
+      {/* Заголовок с кнопкой выхода */}
+      <div className="flex justify-between items-center mb-6">
+        <Link to="/profile">
+          <h1 className="text-xl font-bold text-gray-900">Привет, {user?.name || 'Пользователь'}!</h1>
+          <p className="text-sm text-gray-500">{user?.familyName || 'Семья'}</p>
+        </Link>
+        <button
+          onClick={handleLogout}
+          className="p-2 text-gray-500 hover:text-red-500 transition"
+          title="Выйти"
+        >
+          <LogOut className="w-6 h-6" />
+        </button>
+      </div>
+
       {/* Баланс с визуальным разделением */}
       <div className="text-center mb-6">
         {/* Свободный баланс (основной) */}

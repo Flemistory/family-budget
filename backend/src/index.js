@@ -3,8 +3,11 @@ const cors = require('cors');
 require('dotenv').config();
 
 const { pool, testConnection } = require('./config/database');
+const authRoutes = require('./routes/auth');
 const transactionRoutes = require('./routes/transactions');
-const goalRoutes = require('./routes/goals'); // ← ПРОВЕРЬ ЭТУ СТРОКУ
+const goalRoutes = require('./routes/goals');
+const familyRoutes = require('./routes/family');
+const categoryRoutes = require('./routes/categories');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,8 +17,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Подключаем маршруты
+app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
-app.use('/api/goals', goalRoutes); 
+app.use('/api/goals', goalRoutes);
+app.use('/api/family', familyRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {

@@ -1,58 +1,111 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Trash2, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, Filter, X, Download } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { formatMoney } from '../utils/format';
-import { transactionAPI } from '../services/api';
+import { transactionAPI, categoryAPI } from '../services/api';
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
-  const [filter, setFilter] = useState('all');
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  const loadTransactions = async () => {
+  const [filters, setFilters] = useState({
+    type: 'all',
+    category_id: '',
+    date_from: '',
+    date_to: '',
+    search: '',
+  });
+
+  const loadCategories = async () => {
+    try {
+      const res = await categoryAPI.getAll();
+      if (res.data.success) setCategories(res.data.data);
+    } catch (err) {
+      console.error('Load categories error:', err);
+    }
+  };
+
+  const loadTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await transactionAPI.getAll();
+      const params = {};
+      if (filters.type !== 'all') params.type = filters.type;
+      if (filters.category_id) params.category_id = filters.category_id;
+      if (filters.date_from) params.date_from = filters.date_from;
+      if (filters.date_to) params.date_to = filters.date_to;
+      if (filters.search) params.search = filters.search;
+
+      const response = await transactionAPI.getAll(params);
       setTransactions(response.data.data);
     } catch (err) {
       console.error('Failed to load transactions:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
   const handleDelete = async (id) => {
-    // Подтверждение перед удалением
-    if (!confirm('Вы уверены, что хотите удалить эту транзакцию?')) {
-      return;
-    }
-
+    if (!confirm('Удалить эту транзакцию?')) return;
     try {
       setDeletingId(id);
       await transactionAPI.delete(id);
-      
-      // Обновляем список после удаления
       await loadTransactions();
     } catch (err) {
       console.error('Error deleting transaction:', err);
-      alert('❌ Ошибка при удалении: ' + err.message);
     } finally {
       setDeletingId(null);
     }
   };
 
-  // Всегда загружаем при открытии страницы
-  useEffect(() => {
-    loadTransactions();
-  }, []);
+  const resetFilters = () => {
+    setFilters({ type: 'all', category_id: '', date_from: '', date_to: '', search: '' });
+  };
 
-  const filtered = transactions.filter(t => {
-    if (filter === 'all') return true;
-    return t.type === filter;
-  });
+  const hasActiveFilters = filters.type !== 'all' || filters.category_id || filters.date_from || filters.date_to || filters.search;
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (filters.type !== 'all') params.type = filters.type;
+      if (filters.category_id) params.category_id = filters.category_id;
+      if (filters.date_from) params.date_from = filters.date_from;
+      if (filters.date_to) params.date_to = filters.date_to;
+      if (filters.search) params.search = filters.search;
+
+      const res = await transactionAPI.exportCSV(params);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `transactions_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export error:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const filteredCategories = categories.filter(c =>
+    filters.type === 'all' ? true : c.type === filters.type
+  );
 
   if (loading && transactions.length === 0) {
     return (
@@ -64,42 +117,115 @@ export default function Transactions() {
 
   return (
     <div className="p-4 max-w-md mx-auto pb-24">
-      {/* Заголовок */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Транзакции</h1>
-        <Link to="/transactions/new">
-          <Button variant="primary" className="p-2 rounded-full">
-            <Plus className="w-5 h-5" />
-          </Button>
-        </Link>
-      </div>
-
-      {/* Фильтры */}
-      <div className="flex gap-2 mb-4">
-        {['all', 'income', 'expense'].map(f => (
+        <div className="flex gap-2">
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1 rounded-full text-sm ${
-              filter === f ? 'bg-primary text-white' : 'bg-gray-200'
-            }`}
+            onClick={handleExport}
+            disabled={exporting}
+            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition"
+            title="Экспорт CSV"
           >
-            {f === 'all' ? 'Все' : f === 'income' ? 'Доходы' : 'Расходы'}
+            <Download className="w-5 h-5" />
           </button>
-        ))}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`p-2 rounded-lg transition ${hasActiveFilters ? 'text-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-100'}`}
+            title="Фильтры"
+          >
+            <Filter className="w-5 h-5" />
+          </button>
+          <Link to="/transactions/new">
+            <Button variant="primary" className="p-2 rounded-full">
+              <Plus className="w-5 h-5" />
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* Список */}
-      {filtered.length === 0 ? (
+      {showFilters && (
+        <Card className="mb-4">
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              {['all', 'income', 'expense'].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setFilters({ ...filters, type: f })}
+                  className={`px-3 py-1 rounded-full text-sm ${
+                    filters.type === f ? 'bg-primary text-white' : 'bg-gray-200'
+                  }`}
+                >
+                  {f === 'all' ? 'Все' : f === 'income' ? 'Доходы' : 'Расходы'}
+                </button>
+              ))}
+            </div>
+
+            <select
+              value={filters.category_id}
+              onChange={(e) => setFilters({ ...filters, category_id: e.target.value })}
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-blue-500"
+            >
+              <option value="">Все категории</option>
+              {filteredCategories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={filters.date_from}
+                onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-blue-500"
+                placeholder="От"
+              />
+              <input
+                type="date"
+                value={filters.date_to}
+                onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-blue-500"
+                placeholder="До"
+              />
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                placeholder="Поиск по комментарию..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="flex items-center gap-1 text-sm text-red-500"
+              >
+                <X className="w-3 h-3" />
+                Сбросить фильтры
+              </button>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {transactions.length === 0 ? (
         <Card className="text-center py-8">
-          <p className="text-gray-500">Нет транзакций</p>
-          <Link to="/transactions/new" className="mt-4 inline-block">
-            <Button variant="primary">Добавить первую</Button>
-          </Link>
+          <p className="text-gray-500">
+            {hasActiveFilters ? 'Нет транзакций по выбранным фильтрам' : 'Нет транзакций'}
+          </p>
+          {!hasActiveFilters && (
+            <Link to="/transactions/new" className="mt-4 inline-block">
+              <Button variant="primary">Добавить первую</Button>
+            </Link>
+          )}
         </Card>
       ) : (
         <div className="space-y-3">
-          {filtered.map(t => (
+          {transactions.map(t => (
             <Card key={t.id} className="flex justify-between items-center">
               <div className="flex-1">
                 <p className="font-medium">{t.category_name || 'Без категории'}</p>
@@ -116,22 +242,18 @@ export default function Transactions() {
                 <p className={`font-bold ${t.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
                   {t.type === 'income' ? '+' : '-'}{formatMoney(t.amount)}
                 </p>
-                
-                {/* Кнопка редактирования */}
                 <Link
                   to={`/transactions/${t.id}/edit`}
                   className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Редактировать транзакцию"
+                  title="Редактировать"
                 >
                   <Edit2 className="w-5 h-5" />
                 </Link>
-                
-                {/* Кнопка удаления */}
                 <button
                   onClick={() => handleDelete(t.id)}
                   disabled={deletingId === t.id}
                   className="p-2 text-gray-400 hover:text-danger hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                  title="Удалить транзакцию"
+                  title="Удалить"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
